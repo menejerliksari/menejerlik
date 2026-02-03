@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Astron Manager</title>
+
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+<style>
+body{
+ margin:0;
+ font-family:Arial;
+ background:linear-gradient(180deg,#ffb300,#ff6f00);
+}
+.header{padding:20px}
+.card{
+ background:#fff;
+ border-radius:20px 20px 0 0;
+ padding:20px;
+ min-height:100vh
+}
+.item{
+ padding:15px;
+ font-size:18px;
+ border-bottom:1px solid #eee;
+ cursor:pointer
+}
+input,textarea{
+ width:100%;
+ padding:8px;
+ margin:5px 0
+}
+button{
+ background:#ff9800;
+ color:#fff;
+ border:none;
+ padding:10px;
+ border-radius:8px;
+ margin-top:5px
+}
+</style>
+</head>
+
+<body>
+
+<div class="header">
+ <h3>Salom <span id="name"></span></h3>
+ <p>ID: <span id="uid"></span></p>
+ <p>Rol: <b id="role"></b></p>
+</div>
+
+<div class="card" id="main"></div>
+
+<script>
+let tg = window.Telegram.WebApp;
+tg.ready();
+
+let user = tg.initDataUnsafe.user;
+let uid = user ? user.id : 0;
+let name = user ? user.first_name : "Mehmon";
+
+document.getElementById("name").innerText = name;
+document.getElementById("uid").innerText = uid;
+
+// 🔴 O'ZINGIZNI TELEGRAM ID NI YOZING
+const ADMIN_ID = 8562088626;
+
+let role = (uid == ADMIN_ID) ? "Menejer" : "Foydalanuvchi";
+document.getElementById("role").innerText = role;
+
+// TESTLAR
+let tests = JSON.parse(localStorage.getItem("tests")) || [
+ {q:"HTML nimani anglatadi?",a:["High Text","Hyper Text Markup Language","Home Tool"],c:1}
+];
+
+let score=0,i=0;
+
+if(role=="Menejer") showAdmin();
+else showUser();
+
+// ========== ADMIN PANEL ==========
+function showAdmin(){
+ let h=`<h2>🛠 Menejer panel</h2>
+ <div class="item" onclick="addTest()">➕ Test qo‘shish</div>
+ <div class="item" onclick="viewTests()">📋 Testlar ro‘yxati</div>`;
+ document.getElementById("main").innerHTML=h;
+}
+
+function addTest(){
+ document.getElementById("main").innerHTML=`
+ <h3>Yangi test</h3>
+ <input id="q" placeholder="Savol">
+ <input id="a1" placeholder="Variant A">
+ <input id="a2" placeholder="Variant B">
+ <input id="a3" placeholder="Variant C">
+ <input id="c" placeholder="To‘g‘ri javob (0,1,2)">
+ <button onclick="saveTest()">Saqlash</button>`;
+}
+
+function saveTest(){
+ let t={
+  q:q.value,
+  a:[a1.value,a2.value,a3.value],
+  c:Number(c.value)
+ };
+ tests.push(t);
+ localStorage.setItem("tests",JSON.stringify(tests));
+ showAdmin();
+}
+
+function viewTests(){
+ let h="<h3>Testlar</h3>";
+ tests.forEach((t,i)=>{
+  h+=`<p>${i+1}. ${t.q}</p>`;
+ });
+ h+=`<button onclick="showAdmin()">Orqaga</button>`;
+ document.getElementById("main").innerHTML=h;
+}
+
+// ========== USER PANEL ==========
+function showUser(){
+ document.getElementById("main").innerHTML=
+ `<div class="item" onclick="startTest()">📝 Testni boshlash</div>`;
+}
+
+function startTest(){
+ i=0;score=0;
+ loadQ();
+}
+
+function loadQ(){
+ if(i>=tests.length){
+  document.getElementById("main").innerHTML=
+   `<h2>✅ Tugadi</h2>
+    <p>Natija: ${score}/${tests.length}</p>`;
+  return;
+ }
+ let t=tests[i];
+ let h=`<h3>${i+1}-savol</h3><p>${t.q}</p>`;
+ t.a.forEach((v,ix)=>{
+  h+=`<label><input type="radio" name="q" value="${ix}"> ${v}</label><br>`;
+ });
+ h+=`<button onclick="check(${t.c})">Keyingi</button>`;
+ document.getElementById("main").innerHTML=h;
+}
+
+function check(c){
+ let r=document.getElementsByName("q");
+ let s=-1;
+ r.forEach(x=>{if(x.checked)s=x.value});
+ if(s==c)score++;
+ i++;
+ loadQ();
+}
+</script>
+
+</body>
+</html>
