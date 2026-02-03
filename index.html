@@ -9,55 +9,55 @@
 
 <style>
 body{
-  margin:0;
-  font-family:Arial, sans-serif;
-  background:linear-gradient(180deg,#2ecc71,#27ae60);
+ margin:0;
+ font-family:Arial,sans-serif;
+ background:linear-gradient(180deg,#2ecc71,#27ae60);
 }
-.header{
-  padding:25px;
-  color:#fff;
-}
+.header{padding:25px;color:#fff}
 .card{
-  background:#fff;
-  border-radius:25px 25px 0 0;
-  padding:20px;
-  min-height:100vh;
+ background:#fff;
+ border-radius:25px 25px 0 0;
+ padding:20px;
+ min-height:100vh
 }
 .item{
-  padding:15px;
-  font-size:18px;
-  border-bottom:1px solid #eee;
-  cursor:pointer;
+ padding:15px;
+ font-size:18px;
+ border-bottom:1px solid #eee;
+ cursor:pointer
 }
 .item:hover{background:#f1fdf5}
 button{
-  background:#27ae60;
-  color:#fff;
-  border:none;
-  padding:10px 15px;
-  border-radius:10px;
-  font-size:16px;
+ background:#27ae60;
+ color:#fff;
+ border:none;
+ padding:10px 15px;
+ border-radius:10px;
+ font-size:16px;
+ margin-top:6px
 }
 input{
-  width:100%;
-  padding:8px;
-  margin:6px 0;
+ width:100%;
+ padding:8px;
+ margin:6px 0
 }
 label{display:block;margin:8px 0}
+hr{border:none;border-top:1px solid #eee}
 </style>
 </head>
 
 <body>
 
 <div class="header">
-  <h3>Salom <span id="name"></span></h3>
-  <p>ID: <span id="uid"></span></p>
-  <p>Rol: <b id="role"></b></p>
+ <h3>Salom <span id="name"></span></h3>
+ <p>ID: <span id="uid"></span></p>
+ <p>Rol: <b id="role"></b></p>
 </div>
 
 <div class="card" id="main"></div>
 
 <script>
+// ===== TELEGRAM LOGIN =====
 let tg = window.Telegram.WebApp;
 tg.ready();
 
@@ -68,108 +68,179 @@ let name = user ? user.first_name : "Mehmon";
 document.getElementById("name").innerText = name;
 document.getElementById("uid").innerText = uid;
 
-/* 🔴 MENEJER ID'LAR (kerak bo‘lsa qo‘shing) */
-const ADMIN_IDS = [8562088626];
+// ===== ADMINLAR =====
+const ADMIN_IDS = [8562088626]; // bu yerga boshqa admin ID larni qo‘shing
 
 let role = ADMIN_IDS.includes(uid) ? "Menejer" : "Foydalanuvchi";
 document.getElementById("role").innerText = role;
 
-/* TESTLAR */
+// ===== RUXSAT TIZIMI =====
+let permits = JSON.parse(localStorage.getItem("permits")) || {};
+
+// agar admin bo‘lmasa va ruxsati yo‘q bo‘lsa
+if(role !== "Menejer" && !permits[uid]){
+ document.getElementById("main").innerHTML = `
+  <h2>⛔ Kirish yopiq</h2>
+  <p>Admin ruxsatisiz platforma ochilmaydi.</p>
+  <p><b>Sizning ID:</b> ${uid}</p>
+  <button onclick="requestPermit()">📩 Ruxsat so‘rash</button>
+ `;
+ throw new Error("No permission");
+}
+
+// ===== MA’LUMOTLAR =====
 let tests = JSON.parse(localStorage.getItem("tests")) || [];
+let score=0,i=0,filtered=[];
 
-let score = 0, i = 0, filtered = [];
-
-if(role === "Menejer") showAdmin();
+// ===== BOSHLASH =====
+if(role==="Menejer") showAdmin();
 else showUser();
 
-/* ===== MENEJER PANEL ===== */
+// ===== ADMIN PANEL =====
 function showAdmin(){
-  document.getElementById("main").innerHTML = `
-    <h2>🛠 Menejer panel</h2>
-    <div class="item" onclick="addTest()">➕ Test qo‘shish</div>
-    <div class="item" onclick="viewTests()">📋 Testlar ro‘yxati</div>
-  `;
+ document.getElementById("main").innerHTML = `
+  <h2>🛠 Menejer panel</h2>
+  <div class="item" onclick="addTest()">➕ Test qo‘shish</div>
+  <div class="item" onclick="importCSV()">📥 CSV orqali yuklash</div>
+  <div class="item" onclick="openPermit()">✅ Ruxsat berish</div>
+  <div class="item" onclick="removePermit()">❌ Ruxsatni bekor qilish</div>
+  <div class="item" onclick="viewTests()">📋 Testlar ro‘yxati</div>
+  <input type="file" id="csvfile" accept=".csv" style="display:none">
+ `;
 }
 
+// ===== RUXSAT =====
+function openPermit(){
+ document.getElementById("main").innerHTML = `
+  <h3>Ruxsat berish</h3>
+  <input id="pid" placeholder="Telegram ID">
+  <button onclick="givePermit()">Ruxsat berish</button>
+  <button onclick="showAdmin()">Orqaga</button>
+ `;
+}
+function givePermit(){
+ permits[pid.value]=true;
+ localStorage.setItem("permits",JSON.stringify(permits));
+ alert("✅ Ruxsat berildi");
+ showAdmin();
+}
+function removePermit(){
+ document.getElementById("main").innerHTML = `
+  <h3>Ruxsatni bekor qilish</h3>
+  <input id="rid" placeholder="Telegram ID">
+  <button onclick="denyPermit()">Bekor qilish</button>
+  <button onclick="showAdmin()">Orqaga</button>
+ `;
+}
+function denyPermit(){
+ delete permits[rid.value];
+ localStorage.setItem("permits",JSON.stringify(permits));
+ alert("❌ Ruxsat olib tashlandi");
+ showAdmin();
+}
+function requestPermit(){
+ alert("📩 Admin’ga ID yuboring: "+uid);
+}
+
+// ===== TEST QO‘SHISH =====
 function addTest(){
-  document.getElementById("main").innerHTML = `
-    <h3>Yangi test</h3>
-    <input id="subject" placeholder="Fan (masalan: Matematika)">
-    <input id="q" placeholder="Savol">
-    <input id="a1" placeholder="Variant A">
-    <input id="a2" placeholder="Variant B">
-    <input id="a3" placeholder="Variant C">
-    <input id="a4" placeholder="Variant D">
-    <input id="c" placeholder="To‘g‘ri javob (0,1,2,3)">
-    <button onclick="saveTest()">Saqlash</button>
-  `;
+ document.getElementById("main").innerHTML = `
+  <h3>Yangi test</h3>
+  <input id="subject" placeholder="Fan">
+  <input id="q" placeholder="Savol">
+  <input id="a1" placeholder="Variant A">
+  <input id="a2" placeholder="Variant B">
+  <input id="a3" placeholder="Variant C">
+  <input id="a4" placeholder="Variant D">
+  <input id="c" placeholder="To‘g‘ri javob (0-3)">
+  <button onclick="saveTest()">Saqlash</button>
+  <button onclick="showAdmin()">Orqaga</button>
+ `;
 }
-
 function saveTest(){
-  let t = {
-    subject: subject.value,
-    q: q.value,
-    a: [a1.value, a2.value, a3.value, a4.value],
-    c: Number(c.value)
-  };
-  tests.push(t);
-  localStorage.setItem("tests", JSON.stringify(tests));
+ tests.push({
+  subject:subject.value,
+  q:q.value,
+  a:[a1.value,a2.value,a3.value,a4.value],
+  c:Number(c.value)
+ });
+ localStorage.setItem("tests",JSON.stringify(tests));
+ showAdmin();
+}
+
+// ===== CSV IMPORT =====
+function importCSV(){
+ document.getElementById("csvfile").click();
+}
+document.getElementById("csvfile").addEventListener("change",function(e){
+ let r=new FileReader();
+ r.onload=function(){
+  let lines=r.result.split("\n");
+  lines.shift();
+  lines.forEach(l=>{
+   let c=l.split(",");
+   if(c.length>=7){
+    tests.push({
+     subject:c[0],
+     q:c[1],
+     a:[c[2],c[3],c[4],c[5]],
+     c:Number(c[6])
+    });
+   }
+  });
+  localStorage.setItem("tests",JSON.stringify(tests));
+  alert("✅ Testlar yuklandi");
   showAdmin();
-}
+ };
+ r.readAsText(e.target.files[0],"UTF-8");
+});
 
+// ===== TESTLAR RO‘YXATI =====
 function viewTests(){
-  let h = "<h3>Testlar</h3>";
-  tests.forEach((t, i)=>{
-    h += `<p>${i+1}. [${t.subject}] ${t.q}</p>`;
-  });
-  h += `<button onclick="showAdmin()">Orqaga</button>`;
-  document.getElementById("main").innerHTML = h;
+ let h="<h3>Testlar</h3>";
+ tests.forEach((t,i)=>{
+  h+=`<p>${i+1}. [${t.subject}] ${t.q}</p>`;
+ });
+ h+=`<button onclick="showAdmin()">Orqaga</button>`;
+ document.getElementById("main").innerHTML=h;
 }
 
-/* ===== FOYDALANUVCHI PANEL ===== */
+// ===== FOYDALANUVCHI =====
 function showUser(){
-  let subjects = [...new Set(tests.map(t=>t.subject))];
-  let h = "<h3>📚 Fan tanlang</h3>";
-  subjects.forEach(s=>{
-    h += `<div class="item" onclick="startSubject('${s}')">${s}</div>`;
-  });
-  document.getElementById("main").innerHTML = h;
+ let subjects=[...new Set(tests.map(t=>t.subject))];
+ let h="<h3>📚 Fan tanlang</h3>";
+ subjects.forEach(s=>{
+  h+=`<div class="item" onclick="startSubject('${s}')">${s}</div>`;
+ });
+ document.getElementById("main").innerHTML=h;
 }
-
 function startSubject(s){
-  filtered = tests.filter(t=>t.subject === s);
-  i = 0; score = 0;
-  loadQ();
+ filtered=tests.filter(t=>t.subject===s);
+ i=0;score=0;
+ loadQ();
 }
-
 function loadQ(){
-  if(i >= filtered.length){
-    document.getElementById("main").innerHTML = `
-      <h2>✅ Tugadi</h2>
-      <p>Natija: ${score}/${filtered.length}</p>
-    `;
-    return;
-  }
-  let t = filtered[i];
-  let h = `<h3>${i+1}-savol</h3><p>${t.q}</p>`;
-  t.a.forEach((v, ix)=>{
-    h += `
-      <label>
-        <input type="radio" name="q" value="${ix}">
-        ${String.fromCharCode(65+ix)}. ${v}
-      </label>`;
-  });
-  h += `<br><button onclick="check(${t.c})">Keyingi</button>`;
-  document.getElementById("main").innerHTML = h;
+ if(i>=filtered.length){
+  document.getElementById("main").innerHTML=
+   `<h2>✅ Tugadi</h2><p>Natija: ${score}/${filtered.length}</p>`;
+  return;
+ }
+ let t=filtered[i];
+ let h=`<h3>${i+1}-savol</h3><p>${t.q}</p>`;
+ t.a.forEach((v,ix)=>{
+  h+=`<label><input type="radio" name="q" value="${ix}">
+      ${String.fromCharCode(65+ix)}. ${v}</label>`;
+ });
+ h+=`<button onclick="check(${t.c})">Keyingi</button>`;
+ document.getElementById("main").innerHTML=h;
 }
-
 function check(c){
-  let r = document.getElementsByName("q");
-  let s = -1;
-  r.forEach(x=>{ if(x.checked) s = x.value; });
-  if(Number(s) === c) score++;
-  i++;
-  loadQ();
+ let r=document.getElementsByName("q");
+ let s=-1;
+ r.forEach(x=>{if(x.checked)s=x.value});
+ if(Number(s)===c)score++;
+ i++;
+ loadQ();
 }
 </script>
 
