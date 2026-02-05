@@ -3,251 +3,158 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Menejerlik platforma</title>
+<title>Menejerlik test</title>
 
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
 <style>
-body{
-  margin:0;
-  font-family:Arial,sans-serif;
-  background:linear-gradient(180deg,#2ecc71,#27ae60);
-}
-.header{padding:25px;color:#fff}
-.card{
-  background:#fff;
-  border-radius:25px 25px 0 0;
-  padding:20px;
-  min-height:100vh
-}
-.item{
-  padding:15px;
-  font-size:18px;
-  border-bottom:1px solid #eee;
-  cursor:pointer
-}
+body{margin:0;font-family:Arial;background:#2ecc71;}
+.header{padding:20px;color:white}
+.card{background:white;border-radius:25px 25px 0 0;padding:20px;min-height:100vh}
+.item{padding:15px;border-bottom:1px solid #eee;cursor:pointer}
 .item:hover{background:#f1fdf5}
-button{
-  background:#27ae60;
-  color:#fff;
-  border:none;
-  padding:10px 15px;
-  border-radius:10px;
-  font-size:16px;
-  margin-top:6px
-}
-input{
-  width:100%;
-  padding:8px;
-  margin:6px 0
-}
-label{display:block;margin:8px 0}
+button{background:#27ae60;color:white;border:none;padding:10px;border-radius:8px;margin-top:10px}
+input{width:100%;padding:8px;margin:6px 0}
 </style>
 </head>
 
 <body>
 
 <div class="header">
-  <h3>Salom <span id="name"></span></h3>
-  <p>ID: <span id="uid"></span></p>
-  <p>Rol: <b id="role"></b></p>
+<h3 id="name"></h3>
+<p>ID: <span id="uid"></span></p>
+<p>Rol: <b id="role"></b></p>
 </div>
 
-<div class="card" id="main"></div>
+<div class="card" id="main">Yuklanmoqda...</div>
 
-<script>
-// ================= TELEGRAM LOGIN =================
+<script type="module">
+
+// ================= FIREBASE =================
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js";
+import { getFirestore, doc, getDoc, setDoc, collection, addDoc, getDocs } 
+from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCz9DJ1vqZnq5j51ML25FrSNGnLoSY8f9k",
+  authDomain: "menejerlik-test.firebaseapp.com",
+  projectId: "menejerlik-test",
+  storageBucket: "menejerlik-test.firebasestorage.app",
+  messagingSenderId: "386110280050",
+  appId: "1:386110280050:web:bf227f968a7868be524deb"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+// ================= TELEGRAM =================
 let tg = window.Telegram.WebApp;
 tg.ready();
 
 let user = tg.initDataUnsafe.user;
-let uid = user ? user.id : 0;
-let name = user ? user.first_name : "Mehmon";
+let uid = user?.id || 0;
+let name = user?.first_name || "Mehmon";
 
-document.getElementById("name").innerText = name;
+document.getElementById("name").innerText = "Salom " + name;
 document.getElementById("uid").innerText = uid;
 
-// ================= ADMINLAR =================
-// 🔴 O'ZINGIZNI va boshqa adminlarni qo‘shing
-const ADMIN_IDS = [
-  8562088626
-];
+// ================= ADMIN =================
+const ADMIN_IDS = [8562088626];
 
-// ================= RUXSAT TIZIMI (QATTIQ) =================
-let permits = JSON.parse(localStorage.getItem("permits")) || {};
-
-// AGAR ADMIN BO‘LMASA VA RUXSAT YO‘Q BO‘LSA — HECH QACHON OCHILMASIN
-if (!ADMIN_IDS.includes(uid) && permits[uid] !== true) {
-  document.getElementById("role").innerText = "Foydalanuvchi";
-  document.getElementById("main").innerHTML = `
-    <h2>⛔ Kirish yopiq</h2>
-    <p>Admin ruxsatisiz platforma ochilmaydi.</p>
-    <p><b>Sizning Telegram ID:</b> ${uid}</p>
-    <p>Admin bilan bog‘laning.</p>
-  `;
-  throw new Error("ACCESS_DENIED");
-}
-
-// ================= ROL =================
 let role = ADMIN_IDS.includes(uid) ? "Menejer" : "Foydalanuvchi";
 document.getElementById("role").innerText = role;
 
-// ================= MA'LUMOTLAR =================
-let tests = JSON.parse(localStorage.getItem("tests")) || [];
-let score=0, i=0, filtered=[];
+// ================= RUXSAT TEKSHIRISH =================
+async function checkPermit(){
+  if(role==="Menejer"){ showAdmin(); return; }
 
-// ================= BOSHLASH =================
-if(role === "Menejer") showAdmin();
-else showUser();
+  const ref = doc(db,"permits",String(uid));
+  const snap = await getDoc(ref);
 
-// ================= MENEJER PANEL =================
+  if(!snap.exists()){
+    document.getElementById("main").innerHTML =
+    `<h2>⛔ Ruxsat yo‘q</h2>
+    <p>Admin sizga hali kirish bermagan.</p>
+    <p>ID: ${uid}</p>`;
+    return;
+  }
+
+  showUser();
+}
+
+checkPermit();
+
+// ================= ADMIN PANEL =================
 function showAdmin(){
-  document.getElementById("main").innerHTML = `
-    <h2>🛠 Menejer panel</h2>
-    <div class="item" onclick="addTest()">➕ Test qo‘shish</div>
-    <div class="item" onclick="importCSV()">📥 CSV orqali yuklash</div>
-    <div class="item" onclick="openPermit()">✅ Ruxsat berish</div>
-    <div class="item" onclick="removePermit()">❌ Ruxsatni bekor qilish</div>
-    <div class="item" onclick="viewTests()">📋 Testlar ro‘yxati</div>
-    <input type="file" id="csvfile" accept=".csv" style="display:none">
-  `;
+document.getElementById("main").innerHTML=`
+<h2>Admin panel</h2>
+
+<h3>Ruxsat berish</h3>
+<input id="pid" placeholder="Telegram ID">
+<button onclick="givePermit()">Berish</button>
+
+<hr>
+
+<h3>Test qo‘shish</h3>
+<input id="fan" placeholder="Fan">
+<input id="savol" placeholder="Savol">
+<input id="a" placeholder="A">
+<input id="b" placeholder="B">
+<input id="c" placeholder="C">
+<input id="d" placeholder="D">
+<input id="t" placeholder="To‘g‘ri javob (0-3)">
+<button onclick="addTest()">Saqlash</button>
+`;
 }
 
-// ================= RUXSAT BOSHQARISH =================
-function openPermit(){
-  document.getElementById("main").innerHTML = `
-    <h3>Ruxsat berish</h3>
-    <input id="pid" placeholder="Telegram ID">
-    <button onclick="givePermit()">Ruxsat berish</button>
-    <button onclick="showAdmin()">Orqaga</button>
-  `;
-}
-function givePermit(){
-  permits[pid.value] = true;
-  localStorage.setItem("permits", JSON.stringify(permits));
-  alert("✅ Ruxsat berildi");
-  showAdmin();
-}
-
-function removePermit(){
-  document.getElementById("main").innerHTML = `
-    <h3>Ruxsatni bekor qilish</h3>
-    <input id="rid" placeholder="Telegram ID">
-    <button onclick="denyPermit()">Bekor qilish</button>
-    <button onclick="showAdmin()">Orqaga</button>
-  `;
-}
-function denyPermit(){
-  delete permits[rid.value];
-  localStorage.setItem("permits", JSON.stringify(permits));
-  alert("❌ Ruxsat olib tashlandi");
-  showAdmin();
+// ================= RUXSAT BERISH =================
+window.givePermit = async function(){
+let id=document.getElementById("pid").value;
+await setDoc(doc(db,"permits",String(id)),{allow:true});
+alert("Ruxsat berildi");
 }
 
 // ================= TEST QO‘SHISH =================
-function addTest(){
-  document.getElementById("main").innerHTML = `
-    <h3>Yangi test</h3>
-    <input id="subject" placeholder="Fan">
-    <input id="q" placeholder="Savol">
-    <input id="a1" placeholder="Variant A">
-    <input id="a2" placeholder="Variant B">
-    <input id="a3" placeholder="Variant C">
-    <input id="a4" placeholder="Variant D">
-    <input id="c" placeholder="To‘g‘ri javob (0-3)">
-    <button onclick="saveTest()">Saqlash</button>
-    <button onclick="showAdmin()">Orqaga</button>
-  `;
-}
-function saveTest(){
-  tests.push({
-    subject: subject.value,
-    q: q.value,
-    a: [a1.value,a2.value,a3.value,a4.value],
-    c: Number(c.value)
-  });
-  localStorage.setItem("tests", JSON.stringify(tests));
-  showAdmin();
-}
-
-// ================= CSV IMPORT =================
-function importCSV(){
-  document.getElementById("csvfile").click();
-}
-document.getElementById("csvfile").addEventListener("change", function(e){
-  let reader = new FileReader();
-  reader.onload = function(){
-    let lines = reader.result.split("\n");
-    lines.shift(); // header
-    lines.forEach(l=>{
-      let c = l.split(",");
-      if(c.length >= 7){
-        tests.push({
-          subject:c[0],
-          q:c[1],
-          a:[c[2],c[3],c[4],c[5]],
-          c:Number(c[6])
-        });
-      }
-    });
-    localStorage.setItem("tests", JSON.stringify(tests));
-    alert("✅ Testlar yuklandi");
-    showAdmin();
-  };
-  reader.readAsText(e.target.files[0], "UTF-8");
+window.addTest = async function(){
+await addDoc(collection(db,"tests"),{
+fan:fan.value,
+savol:savol.value,
+javob:[a.value,b.value,c.value,d.value],
+togri:Number(t.value)
 });
-
-// ================= TESTLAR RO‘YXATI =================
-function viewTests(){
-  let h="<h3>Testlar</h3>";
-  tests.forEach((t,i)=>{
-    h+=`<p>${i+1}. [${t.subject}] ${t.q}</p>`;
-  });
-  h+=`<button onclick="showAdmin()">Orqaga</button>`;
-  document.getElementById("main").innerHTML=h;
+alert("Test qo‘shildi");
 }
 
 // ================= FOYDALANUVCHI =================
-function showUser(){
-  let subjects=[...new Set(tests.map(t=>t.subject))];
-  let h="<h3>📚 Fan tanlang</h3>";
-  subjects.forEach(s=>{
-    h+=`<div class="item" onclick="startSubject('${s}')">${s}</div>`;
-  });
-  document.getElementById("main").innerHTML=h;
+async function showUser(){
+let html="<h2>Testlar</h2>";
+const querySnapshot=await getDocs(collection(db,"tests"));
+querySnapshot.forEach(doc=>{
+let t=doc.data();
+html+=`<div class='item' onclick='start("${doc.id}")'>${t.fan} — ${t.savol}</div>`;
+});
+document.getElementById("main").innerHTML=html;
 }
-function startSubject(s){
-  filtered = tests.filter(t=>t.subject===s);
-  i=0; score=0;
-  loadQ();
-}
-function loadQ(){
-  if(i>=filtered.length){
-    document.getElementById("main").innerHTML =
-      `<h2>✅ Tugadi</h2>
-       <p>Natija: ${score}/${filtered.length}</p>`;
-    return;
-  }
-  let t = filtered[i];
-  let h = `<h3>${i+1}-savol</h3><p>${t.q}</p>`;
-  t.a.forEach((v,ix)=>{
-    h+=`<label>
-          <input type="radio" name="q" value="${ix}">
-          ${String.fromCharCode(65+ix)}. ${v}
-        </label>`;
-  });
-  h+=`<button onclick="check(${t.c})">Keyingi</button>`;
-  document.getElementById("main").innerHTML=h;
-}
-function check(c){
-  let r=document.getElementsByName("q");
-  let s=-1;
-  r.forEach(x=>{if(x.checked)s=x.value});
-  if(Number(s)===c) score++;
-  i++;
-  loadQ();
-}
-</script>
 
+// ================= TEST ISHLASH =================
+window.start=async function(id){
+const ref=doc(db,"tests",id);
+const snap=await getDoc(ref);
+let t=snap.data();
+
+let h=`<h3>${t.savol}</h3>`;
+t.javob.forEach((j,i)=>{
+h+=`<div class="item" onclick="ans(${i},${t.togri})">${j}</div>`;
+});
+document.getElementById("main").innerHTML=h;
+}
+
+window.ans=function(a,b){
+if(a==b) alert("To‘g‘ri");
+else alert("Noto‘g‘ri");
+showUser();
+}
+
+</script>
 </body>
 </html>
